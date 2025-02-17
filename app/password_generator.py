@@ -71,19 +71,29 @@ def test_randomness(passwords, expected_entropy=4.5):
 
 # validates a generated password
 def is_valid_password(password):
-    """
-    Checks if the password meets all the necessary criteria.
-    """
     allowed_punctuation = "!@#$%^&*()"
-    if len(password) < 8:
-        return False
+    errors = []
 
-    if (any(c.isupper() for c in password) and
-            any(c.islower() for c in password) and
-            any(c.isdigit() for c in password) and
-            any(c in allowed_punctuation for c in password)):
-        return True
-    return False
+    if len(password) < 8:
+        errors.append("Password must be at least 8 characters long.")
+
+    if not any(c.isupper() for c in password):
+        errors.append("Password must contain at least one uppercase letter.")
+
+    if not any(c.islower() for c in password):
+        errors.append("Password must contain at least one lowercase letter.")
+
+    if not any(c.isdigit() for c in password):
+        errors.append("Password must contain at least one digit.")
+
+    if not any(c in allowed_punctuation for c in password):
+        errors.append(f"Password must contain at least one special character from {allowed_punctuation}.")
+
+    if errors:
+        return False, errors
+    return True, []
+
+
 # Test the generator when running the script directly
 if __name__ == "__main__":
     # passwords = [generate_password(8) for _ in range(1000)]  # Generate 1000 passwords
@@ -91,12 +101,17 @@ if __name__ == "__main__":
     action = input("Do you want to generate a password? (y/n): ").strip().lower()
 
     if action == "y":
-        length = int(input("Enter the length of the password (minimum 8): ").strip())
-        if length < 8:
-            print("Password length must be at least 8.")
-        else:
-            generated_password = generate_password(length)
-            print(f"Generated Password: {generated_password}")
+        while True:
+            try:
+                length = int(input("Enter the length of the password (minimum 8): ").strip())
+                if length < 8:
+                    print("Password length must be at least 8. Please enter a valid number.")
+                else:
+                    generated_password = generate_password(length)
+                    print(f"Generated Password: {generated_password}")
+                    break
+            except ValueError:
+                print("Invalid input. Please enter a valid number.")
 
     elif action == "n":
         print("Okay, no password generated.")
@@ -106,11 +121,14 @@ if __name__ == "__main__":
 
     validate_action = input("Do you want to validate a password? (y/n): ").strip().lower()
     if validate_action == "y":
-        password_to_validate = input("Enter the password to validate: ").strip()
-        if is_valid_password(password_to_validate):
+        password = input("Enter the password to validate: ").strip()
+        is_valid, errors = is_valid_password(password)
+        if is_valid:
             print("Password is valid.")
         else:
-            print("Password is invalid.")
+            print("Password is not that safe. Here are the issues:")
+            for error in errors:
+                print(f"- {error}")
     elif validate_action == "n":
         print("Okay, no validation done.")
     else:
