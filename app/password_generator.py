@@ -9,6 +9,7 @@ def load_word_list(filename):
         return set(line.strip().lower() for line in file)
 
 #common words to avoid
+# resource https://github.com/danielmiessler/SecLists/blob/master/Passwords/Common-Credentials/500-worst-passwords.txt
 word_set = load_word_list("500-worst-passwords.txt")
 
 allowed_punctuation = r"~!@#$%^&*()-=_+\[{]}"
