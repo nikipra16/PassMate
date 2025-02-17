@@ -3,58 +3,84 @@ import secrets  # For secure random generation
 import string   # For character sets
 from collections import Counter
 
+
+def load_word_list(filename):
+    with open(filename, 'r') as file:
+        return set(line.strip().lower() for line in file)
+
+#common words to avoid
+word_set = load_word_list("500-worst-passwords.txt")
+
+allowed_punctuation = r"~!@#$%^&*()-=_+\[{]}"
+
 # generates a password
-def generate_password(length=8,):
-    """
-    Generates a secure password with at least:
-    - One uppercase letter
-    - One lowercase letter
-    - One digit
-    - One punctuation character (from the allowed set)
-    """
-    allowed_punctuation = "!@#$%^&*()"
+def generate_password(length):
     if length < 8:
         raise ValueError("Password length must be at least 8!")
 
     all_chars = string.ascii_uppercase + string.ascii_lowercase + string.digits + allowed_punctuation
 
-    # atleast one of each
-    password_chars = [
-        secrets.choice(string.ascii_uppercase),
-        secrets.choice(string.ascii_lowercase),
-        secrets.choice(string.digits),
-        secrets.choice(allowed_punctuation)
-    ]
+    while True:
+        # Create password with at least one of each required character type
+        password_chars = [
+            secrets.choice(string.ascii_uppercase),
+            secrets.choice(string.ascii_lowercase),
+            secrets.choice(string.digits),
+            secrets.choice(allowed_punctuation)
+        ]
 
-    while len(password_chars) < length:
-        password_chars.append(secrets.choice(all_chars))
+        while len(password_chars) < length:
+            password_chars.append(secrets.choice(all_chars))
 
-    secrets.SystemRandom().shuffle(password_chars)
-    return ''.join(password_chars)
+        secrets.SystemRandom().shuffle(password_chars)
+        password = "".join(password_chars)
 
-# Function to calculate entropy
-def calculate_entropy(data):
-    n = len(data)
-    counter = Counter(data)
-    entropy = 0
-    for count in counter.values():
-        p = count / n
-        entropy -= p * math.log2(p)
-    return entropy
+        # Check if the password contains any forbidden words
+        if not any(word in password for word in word_set):
+            return password
+        else:
 
-# Function to test if the generated password is random ( used ChatGpt)
-def test_randomness(passwords, expected_entropy=4.5):
-    all_chars = ''.join(passwords)  # Join all passwords into a single string
+            continue
 
-    # Calculate entropy
-    entropy = calculate_entropy(all_chars)
-    print(f"Entropy of generated passwords: {entropy:.4f}")
+# Function to calculate shannon entropy
+# def calculate_shannon_entropy(data):
+#     n = len(data)
+#     counter = Counter(data)
+#     entropy = 0
+#     for count in counter.values():
+#         p = count / n
+#         entropy -= p * math.log2(p)
+#     return entropy
 
-    # Check if the entropy is within an expected range (higher entropy means more randomness)
-    if entropy < expected_entropy:
-        print("Warning: Low entropy! The passwords may not be sufficiently random.")
-    else:
-        print("The entropy is sufficient, the passwords seem random.")
+# calculates entropy for a particular password
+# resource: https://www.omnicalculator.com/other/password-entropy
+def calculate_entropy(password):
+    pool_sizes = {
+        "digits": 10,
+        "lowercase": 26,
+        "uppercase": 26,
+        "special": 32  # Special characters (typical U.S. keyboard)
+    }
+    R = 0
+    if any(char.isdigit() for char in password):
+        R += pool_sizes["digits"]
+    if any(char.islower() for char in password):
+        R += pool_sizes["lowercase"]
+    if any(char.isupper() for char in password):
+        R += pool_sizes["uppercase"]
+    if any(char in allowed_punctuation
+           for char in password):
+        R += pool_sizes["special"]
+
+    L = len(password)
+
+    E = L * math.log2(R)
+
+    return E
+
+# Function to test if the generated password distribution is random ( used ChatGpt)
+def test_randomness(passwords):
+    all_chars = ''.join(passwords)
 
     # Frequency check (optional)
     char_counts = Counter(all_chars)
@@ -71,7 +97,6 @@ def test_randomness(passwords, expected_entropy=4.5):
 
 # validates a generated password
 def is_valid_password(password):
-    allowed_punctuation = "!@#$%^&*()"
     errors = []
 
     if len(password) < 8:
@@ -89,23 +114,29 @@ def is_valid_password(password):
     if not any(c in allowed_punctuation for c in password):
         errors.append(f"Password must contain at least one special character from {allowed_punctuation}.")
 
+    if any(word in password for word in word_set):
+        errors.append("Password must not contain common words!!!")
+
+    entropy = calculate_entropy(password)
+    print(f"Password Entropy: {entropy:.2f} bits")
+
     if errors:
         return False, errors
     return True, []
 
 
-# Test the generator when running the script directly
+
 if __name__ == "__main__":
-    # passwords = [generate_password(8) for _ in range(1000)]  # Generate 1000 passwords
+    # passwords = [generate_password(12) for _ in range(10000)]  # Generate 1000 passwords
     # test_randomness(passwords)
     action = input("Do you want to generate a password? (y/n): ").strip().lower()
 
     if action == "y":
         while True:
             try:
-                length = int(input("Enter the length of the password (minimum 8): ").strip())
-                if length < 8:
-                    print("Password length must be at least 8. Please enter a valid number.")
+                length = int(input("Enter the length of the password (minimum 8, maximum 100): ").strip())
+                if length < 8 or (length > 100):
+                    print("Password length must be at least 8 or at most 100. Please enter a valid number.")
                 else:
                     generated_password = generate_password(length)
                     print(f"Generated Password: {generated_password}")
