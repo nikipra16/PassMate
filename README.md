@@ -1,4 +1,4 @@
-#Passmate
+# Passmate
 A simple password generation tool
 
 Features available now:
