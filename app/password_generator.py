@@ -1,8 +1,9 @@
 import math
-import secrets  # For secure random generation
-import string   # For character sets
+import secrets
+import string
 from collections import Counter
-
+import hashlib
+import requests
 
 def load_word_list(filename):
     with open(filename, 'r') as file:
@@ -14,7 +15,6 @@ word_set = load_word_list("500-worst-passwords.txt")
 
 allowed_punctuation = r"~!@#$%^&*()-=_+\[{]}"
 
-# generates a password
 def generate_password(length):
     if length < 8:
         raise ValueError("Password length must be at least 8!")
@@ -22,7 +22,6 @@ def generate_password(length):
     all_chars = string.ascii_uppercase + string.ascii_lowercase + string.digits + allowed_punctuation
 
     while True:
-        # Create password with at least one of each required character type
         password_chars = [
             secrets.choice(string.ascii_uppercase),
             secrets.choice(string.ascii_lowercase),
@@ -36,22 +35,7 @@ def generate_password(length):
         secrets.SystemRandom().shuffle(password_chars)
         password = "".join(password_chars)
 
-        # Check if the password contains any forbidden words
-        if not any(word in password for word in word_set):
-            return password
-        else:
-
-            continue
-
-# Function to calculate shannon entropy
-# def calculate_shannon_entropy(data):
-#     n = len(data)
-#     counter = Counter(data)
-#     entropy = 0
-#     for count in counter.values():
-#         p = count / n
-#         entropy -= p * math.log2(p)
-#     return entropy
+        return password
 
 # calculates entropy for a particular password
 # resource: https://www.omnicalculator.com/other/password-entropy
@@ -95,8 +79,6 @@ def test_randomness(passwords):
         proportion = count / total_chars
         print(f"Character '{char}' appears {proportion * 100:.2f}% of the time.")
 
-
-# validates a generated password
 def is_valid_password(password):
     errors = []
 
@@ -125,10 +107,15 @@ def is_valid_password(password):
         return False, errors
     return True, []
 
+# def pwned_pwds(password):
+#     sha1 = hashlib.sha1(password.encode()).hexdigest().upper()
+#     first5char = sha1[:5]
+#     pwn_url = f"https://api.pwnedpasswords.com/range/{first5char}"
+#     response = requests.get(pwn_url)
 
 
 if __name__ == "__main__":
-    # passwords = [generate_password(12) for _ in range(10000)]  # Generate 1000 passwords
+    # passwords = [generate_password(12) for _ in range(10000)]
     # test_randomness(passwords)
     action = input("Do you want to generate a password? (y/n): ").strip().lower()
 
@@ -151,12 +138,13 @@ if __name__ == "__main__":
     else:
         print("Invalid input. Please enter 'y' for yes or 'n' for no.")
 
-    validate_action = input("Do you want to validate a password? (y/n): ").strip().lower()
+    validate_action = input("Do you want to check for basic password safety? (y/n): ").strip().lower()
     if validate_action == "y":
-        password = input("Enter the password to validate: ").strip()
+        password = input("Enter the password : ").strip()
         is_valid, errors = is_valid_password(password)
+        # breached =
         if is_valid:
-            print("Password is valid.")
+            print("Password seems safe enough.")
         else:
             print("Password is not that safe. Here are the issues:")
             for error in errors:
