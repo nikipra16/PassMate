@@ -23,21 +23,11 @@ def generate_password(length):
     all_chars = (string.ascii_uppercase + string.ascii_lowercase
                  + string.digits + ALLOWED_PUNCTUATIONS)
 
-    while True:
-        password_chars = [
-            secrets.choice(string.ascii_uppercase),
-            secrets.choice(string.ascii_lowercase),
-            secrets.choice(string.digits),
-            secrets.choice(ALLOWED_PUNCTUATIONS)
-        ]
+    password = secrets.choice(all_chars)
+    while len(password) < length:
+            password= password + secrets.choice(all_chars)
 
-        while len(password_chars) < length:
-            password_chars.append(secrets.choice(all_chars))
-
-        secrets.SystemRandom().shuffle(password_chars)
-        password = "".join(password_chars)
-
-        return password
+    return password
 
 
 
@@ -125,7 +115,7 @@ def pwned_pwds(password):
         hash_suffix = sha1[5:]
         for hash_entry in hashes:
             suffix, count = hash_entry.split(":")
-            if suffix == first5char:
+            if suffix == hash_suffix :
                 print(f"Password has been pwned {count} times.")
                 return True
 
@@ -161,6 +151,7 @@ if __name__ == "__main__":
     elif action == "n":
         print("Okay, no password generated.")
 
+
     else:
         print("Invalid input. Please enter 'y' for yes or 'n' for no.")
 
@@ -171,11 +162,11 @@ if __name__ == "__main__":
         is_valid, errors = is_valid_password(password)
         if is_valid:
             print("Password seems safe enough.")
-            pwned_pwds(password)
         else:
             print("Password is not that safe. Here are the issues:")
             for error in errors:
                 print(f"- {error}")
+        pwned_pwds(password)
     elif validate_action == "n":
         print("Okay, no validation done.")
     else:
