@@ -1,3 +1,4 @@
+
 import math
 import secrets
 import string
@@ -6,27 +7,28 @@ import hashlib
 import requests
 
 def load_word_list(filename):
-    with open(filename, 'r') as file:
+    with open(filename, 'r', encoding="utf-8") as file:
         return set(line.strip().lower() for line in file)
 
 #common words to avoid
 # resource https://github.com/danielmiessler/SecLists/blob/master/Passwords/Common-Credentials/500-worst-passwords.txt
 word_set = load_word_list("500-worst-passwords.txt")
 
-allowed_punctuation = r"~!@#$%^&*()-=_+\[{]}"
+ALLOWED_PUNCTUATIONS = r"~!@#$%^&*()-=_+\[{]}"
 
 def generate_password(length):
     if length < 8:
         raise ValueError("Password length must be at least 8!")
 
-    all_chars = string.ascii_uppercase + string.ascii_lowercase + string.digits + allowed_punctuation
+    all_chars = (string.ascii_uppercase + string.ascii_lowercase
+                 + string.digits + ALLOWED_PUNCTUATIONS)
 
     while True:
         password_chars = [
             secrets.choice(string.ascii_uppercase),
             secrets.choice(string.ascii_lowercase),
             secrets.choice(string.digits),
-            secrets.choice(allowed_punctuation)
+            secrets.choice(ALLOWED_PUNCTUATIONS)
         ]
 
         while len(password_chars) < length:
@@ -37,6 +39,8 @@ def generate_password(length):
 
         return password
 
+
+
 # calculates entropy for a particular password
 # resource: https://www.omnicalculator.com/other/password-entropy
 def calculate_entropy(password):
@@ -46,20 +50,20 @@ def calculate_entropy(password):
         "uppercase": 26,
         "special": 32  # Special characters (typical U.S. keyboard)
     }
-    R = 0
-    if any(char.isdigit() for char in password):
-        R += pool_sizes["digits"]
-    if any(char.islower() for char in password):
-        R += pool_sizes["lowercase"]
-    if any(char.isupper() for char in password):
-        R += pool_sizes["uppercase"]
-    if any(char in allowed_punctuation
-           for char in password):
-        R += pool_sizes["special"]
+    char_set = set(password)
+    R = sum(
+        pool_sizes[key]
+        for key, check_set in {
+            "digits": set(string.digits),
+            "lowercase": set(string.ascii_lowercase),
+            "uppercase": set(string.ascii_uppercase),
+            "special": set(ALLOWED_PUNCTUATIONS),
+        }.items()
+        if char_set & check_set
+    )
 
     L = len(password)
-
-    E = L * math.log2(R)
+    E = L * math.log2(R) if R > 0 else 0
 
     return E
 
@@ -79,6 +83,8 @@ def test_randomness(passwords):
         proportion = count / total_chars
         print(f"Character '{char}' appears {proportion * 100:.2f}% of the time.")
 
+
+# validates a generated password
 def is_valid_password(password):
     errors = []
 
@@ -94,8 +100,9 @@ def is_valid_password(password):
     if not any(c.isdigit() for c in password):
         errors.append("Password must contain at least one digit.")
 
-    if not any(c in allowed_punctuation for c in password):
-        errors.append(f"Password must contain at least one special character from {allowed_punctuation}.")
+    if not any(c in ALLOWED_PUNCTUATIONS for c in password):
+        errors.append(f"Password must contain at least one "
+                      f"special character from {ALLOWED_PUNCTUATIONS}.")
 
     if any(word in password for word in word_set):
         errors.append("Password must not contain common words!!!")
@@ -107,11 +114,28 @@ def is_valid_password(password):
         return False, errors
     return True, []
 
-# def pwned_pwds(password):
-#     sha1 = hashlib.sha1(password.encode()).hexdigest().upper()
-#     first5char = sha1[:5]
-#     pwn_url = f"https://api.pwnedpasswords.com/range/{first5char}"
-#     response = requests.get(pwn_url)
+def pwned_pwds(password):
+    sha1 = hashlib.sha1(password.encode()).hexdigest().upper()
+    first5char = sha1[:5]
+    pwn_url = f"https://api.pwnedpasswords.com/range/{first5char}"
+    response = requests.get(pwn_url)
+
+    if response.status_code == 200:
+        hashes = response.text.splitlines()
+        hash_suffix = sha1[5:]
+        for hash_entry in hashes:
+            suffix, count = hash_entry.split(":")
+            if suffix == first5char:
+                print(f"Password has been pwned {count} times.")
+                return True
+
+        print("Password has not been pwned.")
+        return False
+    else:
+
+        print(f"Error: Unable to check password (status code {response.status_code})")
+        return False
+
 
 
 if __name__ == "__main__":
@@ -122,9 +146,11 @@ if __name__ == "__main__":
     if action == "y":
         while True:
             try:
-                length = int(input("Enter the length of the password (minimum 8, maximum 100): ").strip())
+                length = int(input("Enter the length of the password "
+                                   "(minimum 8, maximum 100): ").strip())
                 if length < 8 or (length > 100):
-                    print("Password length must be at least 8 or at most 100. Please enter a valid number.")
+                    print("Password length must be at least 8 or at most 100. "
+                          "Please enter a valid number.")
                 else:
                     generated_password = generate_password(length)
                     print(f"Generated Password: {generated_password}")
@@ -138,13 +164,14 @@ if __name__ == "__main__":
     else:
         print("Invalid input. Please enter 'y' for yes or 'n' for no.")
 
-    validate_action = input("Do you want to check for basic password safety? (y/n): ").strip().lower()
+    validate_action = input("Do you want to check for basic password safety? "
+                            "(y/n): ").strip().lower()
     if validate_action == "y":
         password = input("Enter the password : ").strip()
         is_valid, errors = is_valid_password(password)
-        # breached =
         if is_valid:
             print("Password seems safe enough.")
+            pwned_pwds(password)
         else:
             print("Password is not that safe. Here are the issues:")
             for error in errors:
